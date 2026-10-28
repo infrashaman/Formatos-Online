@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b6e8a">
+<title>Convertidor de Formatos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: una columna de herramienta, pensada para el pulgar; controles arriba, resultados abajo */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --fg:#17202a; --muted:#5d6b78; --line:#d9e0e6;
+  --accent:#0b6e8a; --accent-fg:#ffffff; --ok:#1d7a46; --err:#b3261e; --soft:#e6f1f5;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1418; --surface:#182026; --fg:#e7edf1; --muted:#97a6b2; --line:#2a3640;
+  --accent:#4fb7d4; --accent-fg:#06222b; --ok:#5fcf8d; --err:#ff8a80; --soft:#16303a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1418; --surface:#182026; --fg:#e7edf1; --muted:#97a6b2; --line:#2a3640;
+  --accent:#4fb7d4; --accent-fg:#06222b; --ok:#5fcf8d; --err:#ff8a80; --soft:#16303a; color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5}
+.wrap{max-width:640px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:18px}
+h1{font-size:1.5rem;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.sub{margin:4px 0 0;color:var(--muted)}
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
+  border:2px dashed var(--line);border-radius:14px;background:var(--surface);padding:26px 16px;cursor:pointer}
+.drop.over{border-color:var(--accent);background:var(--soft)}
+.drop strong{font-size:1.05rem}
+.drop span{color:var(--muted);font-size:.9rem}
+.tags{font-family:var(--font-mono);font-size:.75rem;letter-spacing:.04em;color:var(--muted)}
+input[type=file]{display:none}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.label{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg button{font:inherit;font-weight:600;padding:10px 0;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.row{display:flex;flex-direction:column;gap:6px}
+.row .top{display:flex;justify-content:space-between;align-items:baseline}
+.val{font-family:var(--font-mono);font-size:.85rem}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.files{display:flex;flex-direction:column;gap:4px;font-size:.9rem;max-height:160px;overflow:auto}
+.files div{display:flex;justify-content:space-between;gap:10px;min-width:0}
+.files .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.files .s{font-family:var(--font-mono);font-size:.8rem;color:var(--muted);flex:none}
+.btn{font:inherit;font-weight:600;font-size:1rem;padding:14px;border-radius:12px;border:0;background:var(--accent);color:var(--accent-fg);cursor:pointer;width:100%}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+button:focus-visible,.drop:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.status{font-size:.9rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.status.err{color:var(--err)}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.card img{width:100%;aspect-ratio:1;object-fit:contain;background:var(--soft);display:block}
+.card .meta{padding:8px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.card .n{font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .s{font-family:var(--font-mono);font-size:.72rem;color:var(--muted)}
+.card button{font:inherit;font-size:.85rem;font-weight:600;padding:7px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer}
+.hint{font-size:.85rem;color:var(--muted);margin:0}
+.errors{font-size:.85rem;color:var(--err);margin:0;padding-left:18px}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>Convertidor de formatos</h1>
+    <p class="sub">Convierte imágenes y páginas de PDF en tu celular. Todo se procesa en tu dispositivo; nada se sube a internet.</p>
+  </header>
+
+  <label class="drop" id="drop" tabindex="0" for="pick">
+    <strong>Elegir archivos</strong>
+    <span>Toca aquí o arrastra archivos</span>
+    <span class="tags">JPG · PNG · BMP · WEBP · GIF · PDF</span>
+  </label>
+  <input type="file" id="pick" multiple accept="image/*,.pdf,application/pdf">
+
+  <section class="panel" id="panel">
+    <div class="row">
+      <span class="label">Convertir a</span>
+      <div class="seg" id="fmt">
+        <button type="button" id="f-png" data-f="png" aria-pressed="true">PNG</button>
+        <button type="button" id="f-jpg" data-f="jpg" aria-pressed="false">JPG</button>
+        <button type="button" id="f-webp" data-f="webp" aria-pressed="false">WEBP</button>
+      </div>
+    </div>
+    <div class="row" id="qrow" hidden>
+      <div class="top"><span class="label">Calidad</span><span class="val" id="qval">90%</span></div>
+      <input type="range" id="quality" min="50" max="100" value="90">
+    </div>
+    <div class="row">
+      <div class="top"><span class="label">Resolución de PDF</span><span class="val" id="sval">144 dpi</span></div>
+      <input type="range" id="scale" min="1" max="4" step="1" value="2">
+    </div>
+    <div class="row">
+      <span class="label" id="count">Ningún archivo seleccionado</span>
+      <div class="files" id="files"></div>
+    </div>
+    <button class="btn" id="go" disabled>Convertir</button>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="status" id="status">Esperando archivos…</div>
+    <ul class="errors" id="errors" hidden></ul>
+  </section>
+
+  <section id="out" hidden style="display:flex;flex-direction:column;gap:12px">
+    <span class="label" id="outcount"></span>
+    <button class="btn ghost" id="zip" hidden>Guardar todo (.zip)</button>
+    <p class="hint" id="hint" hidden>Para guardar una imagen, mantén presionada la miniatura y elige «Guardar imagen».</p>
+    <div class="results" id="results"></div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const MIME={png:"image/png",jpg:"image/jpeg",webp:"image/webp"};
+let fmt="png", files=[], results=[], dl=null, busy=false;
+
+if(window.claude && window.claude.use){
+  window.claude.use("downloads").then(d=>{dl=d;refreshOut();}).catch(()=>{});
+}
+
+function human(n){return n<1024?n+" B":n<1048576?(n/1024).toFixed(0)+" KB":(n/1048576).toFixed(1)+" MB";}
+function base(name){return name.replace(/\.[^.]+$/,"");}
+function isPdf(f){return f.type==="application/pdf"||/\.pdf$/i.test(f.name);}
+
+$("fmt").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  fmt=b.dataset.f;
+  for(const x of $("fmt").children)x.setAttribute("aria-pressed",x===b);
+  $("qrow").hidden=fmt==="png";
+  $("go").textContent="Convertir a "+fmt.toUpperCase();
+});
+$("quality").addEventListener("input",e=>$("qval").textContent=e.target.value+"%");
+$("scale").addEventListener("input",e=>$("sval").textContent=(e.target.value*72)+" dpi");
+
+function setFiles(list){
+  files=[...list].filter(f=>f.type.startsWith("image/")||isPdf(f));
+  $("count").textContent=files.length?files.length+(files.length===1?" archivo":" archivos"):"Ningún archivo seleccionado";
+  $("files").innerHTML="";
+  for(const f of files){
+    const d=document.createElement("div");
+    const n=document.createElement("span");n.className="n";n.textContent=f.name;
+    const s=document.createElement("span");s.className="s";s.textContent=human(f.size);
+    d.append(n,s);$("files").append(d);
+  }
+  $("go").disabled=!files.length;
+  setStatus(files.length?"Listo para convertir":"Esperando archivos…");
+}
+$("pick").addEventListener("change",e=>setFiles(e.target.files));
+const drop=$("drop");
+drop.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("pick").click();}});
+["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>setFiles(e.dataTransfer.files));
+
+function setStatus(t,err){$("status").textContent=t;$("status").classList.toggle("err",!!err);}
+function setBar(p){$("barfill").style.width=(p*100)+"%";}
+
+function canvasToBlob(c){
+  const q=$("quality").value/100;
+  return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("no se pudo codificar")),MIME[fmt],q));
+}
+function prepCanvas(w,h){
+  const c=document.createElement("canvas");c.width=w;c.height=h;
+  const ctx=c.getContext("2d");
+  if(fmt==="jpg"){ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);} // JPG no tiene transparencia
+  return [c,ctx];
+}
+function loadImage(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file);const img=new Image();
+    img.onload=()=>{res(img);};img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("formato de imagen no soportado por este navegador"));};
+    img.src=url;
+  });
+}
+async function convertImage(file){
+  const img=await loadImage(file);
+  const [c,ctx]=prepCanvas(img.naturalWidth,img.naturalHeight);
+  ctx.drawImage(img,0,0);URL.revokeObjectURL(img.src);
+  return [{name:base(file.name)+"."+fmt,blob:await canvasToBlob(c)}];
+}
+async function convertPdf(file,onPage){
+  if(!window.pdfjsLib)throw new Error("no se cargó el lector de PDF (revisa tu conexión)");
+  const data=new Uint8Array(await file.arrayBuffer());
+  const pdf=await pdfjsLib.getDocument({data,isEvalSupported:false}).promise;
+  const scale=+$("scale").value, out=[];
+  for(let i=1;i<=pdf.numPages;i++){
+    onPage(i,pdf.numPages);
+    const page=await pdf.getPage(i);
+    const vp=page.getViewport({scale});
+    const [c,ctx]=prepCanvas(Math.floor(vp.width),Math.floor(vp.height));
+    if(fmt!=="jpg"){ctx.fillStyle="#ffffff";ctx.fillRect(0,0,c.width,c.height);}
+    await page.render({canvasContext:ctx,viewport:vp}).promise;
+    out.push({name:`${base(file.name)}_pagina_${i}.${fmt}`,blob:await canvasToBlob(c)});
+    page.cleanup();
+  }
+  pdf.destroy();
+  return out;
+}
+
+$("go").addEventListener("click",async()=>{
+  if(busy||!files.length)return;
+  busy=true;$("go").disabled=true;
+  results.forEach(r=>URL.revokeObjectURL(r.url));results=[];
+  $("results").innerHTML="";$("errors").innerHTML="";$("errors").hidden=true;
+  let done=0;const errs=[];let mismatch=false;
+  for(const f of files){
+    try{
+      const res=isPdf(f)
+        ?await convertPdf(f,(i,n)=>setStatus(`${f.name}: página ${i} de ${n}`))
+        :(setStatus("Procesando "+f.name),await convertImage(f));
+      for(const r of res){
+        if(r.blob.type!==MIME[fmt])mismatch=true;
+        r.url=URL.createObjectURL(r.blob);results.push(r);addCard(r);
+      }
+    }catch(e){errs.push(`${f.name}: ${e.message||e}`);}
+    done++;setBar(done/files.length);
+  }
+  if(errs.length){$("errors").hidden=false;for(const m of errs){const li=document.createElement("li");li.textContent=m;$("errors").append(li);}}
+  let msg=`Listo: ${results.length} ${results.length===1?"imagen generada":"imágenes generadas"}`;
+  if(errs.length)msg+=`, ${errs.length} con error`;
+  if(mismatch)msg+=". Tu navegador no puede crear "+fmt.toUpperCase()+"; prueba con PNG o JPG";
+  setStatus(msg,!!errs.length||mismatch);
+  busy=false;$("go").disabled=false;refreshOut();
+});
+
+function addCard(r){
+  const card=document.createElement("div");card.className="card";
+  const img=document.createElement("img");img.src=r.url;img.alt=r.name;
+  const meta=document.createElement("div");meta.className="meta";
+  const n=document.createElement("span");n.className="n";n.textContent=r.name;
+  const s=document.createElement("span");s.className="s";s.textContent=human(r.blob.size);
+  const b=document.createElement("button");b.textContent="Guardar";b.className="save";
+  b.addEventListener("click",()=>save(r.name,r.blob,b));
+  meta.append(n,s,b);card.append(img,meta);$("results").append(card);
+}
+async function save(name,blob,btn){
+  if(!dl){
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;
+    document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),30000);
+    if(btn)btn.textContent="Guardado";return;
+  }
+  try{await dl.save({filename:name,data:blob});if(btn)btn.textContent="Guardado";}
+  catch(e){
+    if(e&&e.code==="declined")return;
+    if(e&&e.code==="rate_limited"){setStatus("Espera un momento y vuelve a intentar",true);return;}
+    setStatus("No se pudo guardar: "+(e&&e.message||e),true);
+  }
+}
+$("zip").addEventListener("click",async()=>{
+  if(!window.JSZip){setStatus("No se cargó el compresor ZIP",true);return;}
+  setStatus("Preparando ZIP…");
+  const z=new JSZip();results.forEach(r=>z.file(r.name,r.blob));
+  const blob=await z.generateAsync({type:"blob"});
+  setStatus("ZIP listo ("+human(blob.size)+")");
+  save("convertidos_"+fmt+".zip",blob,null);
+});
+function refreshOut(){
+  $("out").hidden=!results.length;
+  $("outcount").textContent=results.length+" resultado"+(results.length===1?"":"s");
+  $("zip").hidden=results.length<2;
+  $("hint").hidden=true;
+  
+}
+</script>
+
+</body>
+</html>
